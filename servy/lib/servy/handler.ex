@@ -5,35 +5,82 @@ defmodule Servy.Handler do
     # format_response(conv)
 
     request
-    |> parse
-    |> route
-    |> format_response
+    |> parse()
+    |> log()
+    |> route()
+    |> format_response()
   end
 
-  def parse(_request) do
+  def log(conv), do: IO.inspect(conv)
+
+  def parse(request) do
     # TODO: Parse the request string into a map:
-    _conv = %{method: "GET", path: "/wildthings", resp_body: ""}
+    [method, path, _version] =
+      request
+      |> String.split("\n")
+      |> List.first()
+      |> String.split(" ")
+
+    %{method: method, path: path, resp_body: ""}
   end
 
-  def route(_conv) do
+  @spec route(conv :: map()) :: map()
+  def route(conv) do
     # TODO: Create a new map that also has the response body:
-    _conv = %{method: "GET", path: "/wildthings", resp_body: "Bears, Lions, Tigers"}
+    route(conv, conv.method, conv.path)
   end
 
-  def format_response(_conv) do
+  @spec route(conv :: map(), method :: String.t(), path :: String.t()) :: map()
+  def route(conv, "GET", "/wildthings") do
+    %{conv | resp_body: "Bears, Lions, Tigers"}
+  end
+
+  def route(conv, "GET", "/bears") do
+    %{conv | resp_body: "Teddy, Smokey, Paddington"}
+  end
+
+  def route(conv, "GET", "/bigfoot") do
+    %{conv | resp_body: "Big FOoot"}
+  end
+
+  def format_response(conv) do
     # TODO: Use values in the map to create an HTTP response string:
     """
     HTTP/1.1 200 OK
     Content-Type: text/html
-    Content-Length: 20
+    Content-Length: #{byte_size(conv.resp_body)}
 
-    Bears, Lions, Tigers
+    #{conv.resp_body}
     """
   end
 end
 
 request = """
 GET /wildthings HTTP/1.1
+Host: example.com
+User-Agent: ExampleBrowser/1.0
+Accept: */*
+
+"""
+
+response = Servy.Handler.handle(request)
+
+IO.puts(response)
+
+request = """
+GET /bears HTTP/1.1
+Host: example.com
+User-Agent: ExampleBrowser/1.0
+Accept: */*
+
+"""
+
+response = Servy.Handler.handle(request)
+
+IO.puts(response)
+
+request = """
+GET /bigfoot HTTP/1.1
 Host: example.com
 User-Agent: ExampleBrowser/1.0
 Accept: */*
