@@ -69,24 +69,61 @@ defmodule Servy.Handler do
     %{conv | status: 200, resp_body: "Bears, Lions, Tigers"}
   end
 
-  def route(%{method: "GET", path: "/bears"} = conv) do
-    %{conv | status: 200, resp_body: "Teddy, Smokey, Paddington"}
+  def route(%{method: "GET", path: "/bigfoot"} = conv) do
+    %{conv | status: 200, resp_body: "Big FOoot"}
+  end
+
+  def route(%{method: "GET", path: "/about"} = conv) do
+    file = path_file("about.html")
+
+    read_file(conv, file)
+  end
+
+  def route(%{method: "GET", path: "/bears/new"} = conv) do
+    file = path_file("form.html")
+
+    read_file(conv, file)
   end
 
   def route(%{method: "GET", path: "/bears/" <> id} = conv) do
     %{conv | status: 200, resp_body: "Bears #{id}"}
   end
 
+  def route(%{method: "GET", path: "/bears"} = conv) do
+    %{conv | status: 200, resp_body: "Teddy, Smokey, Paddington"}
+  end
+
+  def route(%{method: "GET", path: "/pages/" <> file} = conv) do
+    file = path_file(file)
+
+    read_file(conv, file)
+  end
+
   def route(%{method: "DELETE", path: "/bears/" <> _id} = conv) do
     %{conv | status: 403, resp_body: "Deleting a bear is forbidden"}
   end
 
-  def route(%{method: "GET", path: "/bigfoot"} = conv) do
-    %{conv | status: 200, resp_body: "Big FOoot"}
-  end
-
   def route(%{method: _method, path: path} = conv) do
     %{conv | status: 404, resp_body: "No #{path} here!"}
+  end
+
+  defp path_file(name) do
+    "../../pages/"
+    |> Path.expand(__DIR__)
+    |> Path.join(name)
+  end
+
+  defp read_file(conv, file) do
+    case File.read(file) do
+      {:ok, content} ->
+        %{conv | status: 200, resp_body: content}
+
+      {:error, :enoent} ->
+        %{conv | status: 404, resp_body: "File not found!"}
+
+      {:error, reason} ->
+        %{conv | status: 500, resp_body: "File error: #{reason}"}
+    end
   end
 
   def format_response(conv) do
@@ -198,6 +235,42 @@ IO.puts(response)
 
 request = """
 GET /bears?id=2 HTTP/1.1
+Host: example.com
+User-Agent: ExampleBrowser/1.0
+Accept: */*
+
+"""
+
+response = Servy.Handler.handle(request)
+
+IO.puts(response)
+
+request = """
+GET /about HTTP/1.1
+Host: example.com
+User-Agent: ExampleBrowser/1.0
+Accept: */*
+
+"""
+
+response = Servy.Handler.handle(request)
+
+IO.puts(response)
+
+request = """
+GET /bears/new HTTP/1.1
+Host: example.com
+User-Agent: ExampleBrowser/1.0
+Accept: */*
+
+"""
+
+response = Servy.Handler.handle(request)
+
+IO.puts(response)
+
+request = """
+GET /pages/form.html HTTP/1.1
 Host: example.com
 User-Agent: ExampleBrowser/1.0
 Accept: */*
