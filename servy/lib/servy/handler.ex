@@ -1,6 +1,17 @@
 defmodule Servy.Handler do
   require Logger
 
+  @moduledoc """
+  This module Handlers HTTP requests  
+  """
+
+  import Servy.Plugins, only: [rewrite_path: 1, log: 1, track: 1]
+  import Servy.Parser, only: [parse: 1]
+  import Servy.FileHandler, only: [handle_file: 2, read_file: 1]
+
+  @doc """
+  This is a main function
+  """
   def handle(request) do
     request
     |> parse()
@@ -22,47 +33,6 @@ defmodule Servy.Handler do
 
   def emojify(conv), do: conv
 
-  def track(%{status: 404, path: path} = conv) do
-    Logger.warn("Warning: #{path} is on the loose!")
-    conv
-  end
-
-  def track(conv), do: conv
-
-  def rewrite_path(%{path: "/wildlife"} = conv) do
-    %{conv | path: "/wildthings"}
-  end
-
-  def rewrite_path(%{path: path} = conv) do
-    regex = ~r{\/(?<thing>\w+)\?id=(?<id>\d+)}
-    captures = Regex.named_captures(regex, path)
-    rewrite_path_captures(conv, captures)
-  end
-
-  def rewrite_path_captures(conv, %{"thing" => thing, "id" => id}) do
-    %{conv | path: "/#{thing}/#{id}"}
-  end
-
-  def rewrite_path_captures(conv, nil), do: conv
-
-  def log(conv), do: IO.inspect(conv)
-
-  def parse(request) do
-    # TODO: Parse the request string into a map:
-    [method, path, _version] =
-      request
-      |> String.split("\n")
-      |> List.first()
-      |> String.split(" ")
-
-    %{
-      method: method,
-      path: path,
-      resp_body: "",
-      status: nil
-    }
-  end
-
   # TODO: Create a new map that also has the response body:
   @spec route(conv :: map()) :: map()
   def route(%{method: "GET", path: "/wildthings"} = conv) do
@@ -76,13 +46,17 @@ defmodule Servy.Handler do
   def route(%{method: "GET", path: "/about"} = conv) do
     file = path_file("about.html")
 
-    read_file(conv, file)
+    file
+    |> read_file()
+    |> handle_file(conv)
   end
 
   def route(%{method: "GET", path: "/bears/new"} = conv) do
     file = path_file("form.html")
 
-    read_file(conv, file)
+    file
+    |> read_file()
+    |> handle_file(conv)
   end
 
   def route(%{method: "GET", path: "/bears/" <> id} = conv) do
@@ -96,7 +70,9 @@ defmodule Servy.Handler do
   def route(%{method: "GET", path: "/pages/" <> file} = conv) do
     file = path_file(file)
 
-    read_file(conv, file)
+    file
+    |> read_file()
+    |> handle_file(conv)
   end
 
   def route(%{method: "DELETE", path: "/bears/" <> _id} = conv) do
@@ -111,19 +87,6 @@ defmodule Servy.Handler do
     "../../pages/"
     |> Path.expand(__DIR__)
     |> Path.join(name)
-  end
-
-  defp read_file(conv, file) do
-    case File.read(file) do
-      {:ok, content} ->
-        %{conv | status: 200, resp_body: content}
-
-      {:error, :enoent} ->
-        %{conv | status: 404, resp_body: "File not found!"}
-
-      {:error, reason} ->
-        %{conv | status: 500, resp_body: "File error: #{reason}"}
-    end
   end
 
   def format_response(conv) do
